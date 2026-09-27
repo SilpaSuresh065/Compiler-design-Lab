@@ -1,0 +1,67 @@
+%{
+#include <stdio.h>
+#include <stdlib.h>
+%}
+
+preprocessor   #.*
+identifier     [_a-zA-Z][_a-zA-Z0-9]*
+keyword        auto|double|int|struct|break|else|long|switch|case|enum|register|typedef|char|extern|return|union|const|float|short|unsigned|continue|for|signed|void|default|goto|sizeof|volatile|do|if|static|while
+comment        "/*"(.*|\n)*"*/"
+assmnt_op      "="|"+="|"-="|"*="|"/="|"%="
+relop          "=="|"!="|"<"|"<="|">"|">="
+logical_op     "&&"|"!"|"||"
+bitwise_op     [&|^~]|"<<"|">>"
+arith_op       [+\-*/%]
+integer        ([0-9]+)
+string         \".*\"
+punct          [.,;(){}\[\]]
+
+%%
+
+{string}       { printf("\nString:\t\t%s", yytext); }
+{keyword}      { printf("\nKeyword:\t\t%s", yytext); }
+{preprocessor} { printf("\nPreprocessor Directive:\t%s", yytext); }
+{comment}      { printf("\nComment:\t\t%s", yytext); }
+{identifier}"(" { printf("\nFunction:\t\t%s", yytext); }
+"{"            { printf("\nBegin Block:\t\t%s", yytext); }
+"}"            { printf("\nEnd Block:\t\t%s", yytext); }
+{assmnt_op}    { printf("\nAssignment Operator:\t%s", yytext); }
+{relop}        { printf("\nRelational Operator:\t%s", yytext); }
+{arith_op}     { printf("\nArithmetic Operator:\t%s", yytext); }
+{logical_op}   { printf("\nLogical Operator:\t%s", yytext); }
+{bitwise_op}   { printf("\nBitwise Operator:\t%s", yytext); }
+{identifier}   { printf("\nVariable:\t\t%s", yytext); }
+{integer}      { printf("\nInteger:\t\t%s", yytext); }
+{punct}        { printf("\nPunctuation:\t\t%s", yytext); }
+
+[ \t\n]+       ;
+.              ;
+
+%%
+
+int main()
+{
+    FILE *file;
+
+    file = fopen("input.c", "r");
+
+    if (file == NULL)
+    {
+        printf("File open error");
+        exit(0);
+    }
+
+    yyin = file;
+    yylex();
+
+    printf("\n");
+
+    fclose(yyin);
+
+    return 0;
+}
+
+int yywrap()
+{
+    return 1;
+}
