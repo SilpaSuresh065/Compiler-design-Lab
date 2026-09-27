@@ -1,77 +1,133 @@
-
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
-#define MAX 10
-#define SIZE 5
+#define MAX 50
 
 typedef struct {
-    char op, op1[SIZE], op2[SIZE], res[SIZE];
-} Quad;
+    char name;
+    int value;
+    int constant;
+} Variable;
 
-Quad q[MAX];
-int n;
+Variable table[MAX];
+int count = 0;
 
-char *getConst(char *x)
-{
+int find(char name) {
     int i;
-
-    for (i = 0; i < n; i++)
-        if (q[i].op == '=' && strcmp(q[i].res, x) == 0)
-            return q[i].op1;
-
-    return x;
+    for (i = 0; i < count; i++)
+        if (table[i].name == name)
+            return i;
+    return -1;
 }
 
-void propagate()
-{
-    int i;
-    char a[SIZE], b[SIZE];
-
-    for (i = 0; i < n; i++)
-    {
-        strcpy(a, getConst(q[i].op1));
-        strcpy(b, getConst(q[i].op2));
-
-        strcpy(q[i].op1, a);
-        strcpy(q[i].op2, b);
+void setVariable(char name, int value, int constant) {
+    int p = find(name);
+    if (p == -1) {
+        table[count].name = name;
+        table[count].value = value;
+        table[count].constant = constant;
+        count++;
+    }
+    else {
+        table[p].value = value;
+        table[p].constant = constant;
     }
 }
 
-int main()
-{
-    int i;
-
-    printf("Enter the number of 3-address instructions: ");
-    scanf("%d", &n);
-
-    printf("\nEnter each instruction\n");
-
-    for (i = 0; i < n; i++)
-    {
-        printf("Instruction %d: ", i + 1);
-
-        scanf(" %c %s %s %s",
-              &q[i].op,
-              q[i].op1,
-              q[i].op2,
-              q[i].res);
+int getValue(char name, int *value) {
+    int p = find(name);
+    if (p != -1 && table[p].constant) {
+        *value = table[p].value;
+        return 1;
     }
-
-    propagate();
-
-    printf("\nThe code after constant propagation is:\n\n");
-
-    printf("op\toperand1\toperand2\tresult\n");
-    printf("-----------------------------------------------\n");
-
-    for (i = 0; i < n; i++)
-        printf("%c\t%s\t\t%s\t\t%s\n",
-               q[i].op,
-               q[i].op1,
-               q[i].op2,
-               q[i].res);
-
     return 0;
 }
 
+int main() {
+    int n, i;
+    char line[100];
+
+    printf("Enter number of statements: ");
+    scanf("%d", &n);
+    getchar();
+
+    printf("Enter statements:\n");
+
+    for (i = 0; i < n; i++) {
+        char clean[100];
+        char lhs, x, y, op;
+        int a, b, result;
+        int j, k = 0;
+
+        fgets(line, sizeof(line), stdin);
+        line[strcspn(line, "\n")] = '\0';
+
+        /* Remove spaces */
+        for (j = 0; line[j] != '\0'; j++) {
+            if (line[j] != ' ')
+                clean[k++] = line[j];
+        }
+        clean[k] = '\0';
+
+        /* Constant assignment: a=10 */
+        if (sscanf(clean, "%c=%d", &lhs, &result) == 2) {
+            setVariable(lhs, result, 1);
+        }
+
+        /* Expression: c=b+5, d=c*2, etc. */
+        else if (sscanf(clean, "%c=%c%c%c", &lhs, &x, &op, &y) == 4) {
+            int ok1, ok2;
+            if (isdigit(x)) {
+                a = x - '0';
+                ok1 = 1;
+            }
+            else
+                ok1 = getValue(x, &a);
+
+            if (isdigit(y)) {
+                b = y - '0';
+                ok2 = 1;
+            }
+            else
+                ok2 = getValue(y, &b);
+            if (ok1 && ok2) {
+                switch (op) {
+                    case '+': result = a + b; break;
+                    case '-': result = a - b; break;
+                    case '*': result = a * b; break;
+                    case '/':
+                        if (b == 0) {
+                            ok1 = ok2 = 0;
+                            break;
+                        }
+                        result = a / b;
+                        break;
+                    default:
+                        ok1 = ok2 = 0;
+                }
+
+                if (ok1 && ok2)
+                    setVariable(lhs, result, 1);
+                else
+                    setVariable(lhs, 0, 0);
+            }
+            else
+                setVariable(lhs, 0, 0);
+        }
+        /* Copy propagation: b=a */
+        else if (sscanf(clean, "%c=%c", &lhs, &x) == 2) {
+            if (getValue(x, &result))
+                setVariable(lhs, result, 1);
+            else
+                setVariable(lhs, 0, 0);
+        }
+    }
+    printf("\nAfter Constant Propagation:\n");
+    for (i = 0; i < count; i++) {
+        if (table[i].constant)
+            printf("%c=%d\n", table[i].name, table[i].value);
+    }
+    return 0;
+}
